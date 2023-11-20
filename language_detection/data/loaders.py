@@ -52,6 +52,7 @@ def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawD
         if lbl not in labels:
             raise ValueError(f"y data label '{lbl}' not in label keys!")
 
+    # optionally, remove duplicate data
     dropped_samples = None
     if drop_duplicates:
         test_set = set(x_test)
@@ -63,8 +64,8 @@ def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawD
             if train_sample in test_set:
                 duplicate_indices.add(idx)
                 dropped_samples.append(train_sample)
-        x_train = [sample for idx, sample in enumerate(x_train) if idx not in duplicate_indices]
-        y_train = [label for idx, label in enumerate(y_train) if idx not in duplicate_indices]
+        x_train: list[str] = [sample for idx, sample in enumerate(x_train) if idx not in duplicate_indices]
+        y_train: list[str] = [label for idx, label in enumerate(y_train) if idx not in duplicate_indices]
         logger.info(f"dropped {len(dropped_samples)} samples from training data that also appeared in the test data")
 
     dataset = RawDataset(
