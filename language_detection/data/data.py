@@ -7,3 +7,4 @@ class RawDataset:
     y_train: list[str]
     y_test: list[str]
     labels: dict[str | int, str]
+    dropped: list[str] | None = None

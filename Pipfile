@@ -4,6 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+scikit-learn = "==1.3.2"
+loguru = "*"
 
 [dev-packages]
 ipykernel = "*"

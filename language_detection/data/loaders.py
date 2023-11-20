@@ -1,9 +1,26 @@
 import pathlib
 
+from loguru import logger
+
 from language_detection.data.data import RawDataset
 
 
-def load_wili_2018_dataset(data_path: str) -> RawDataset:
+def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawDataset:
+    """
+    load the Wikipedia Language Identification database (WiLI-2018) from its extracted zip contents
+
+    Parameters
+    ----------
+    data_path : str
+        path to the directory where dataset zip contents were extracted
+    drop_duplicates : bool, optional
+        drop samples from training data if samples also in test data, by default True
+
+    Returns
+    -------
+    RawDataset
+        object with training and test splits
+    """
 
     required_files = ["labels.csv", "urls.txt", "x_test.txt", "x_train.txt", "y_test.txt", "y_train.txt"]
     expected_languages = 235
@@ -34,13 +51,24 @@ def load_wili_2018_dataset(data_path: str) -> RawDataset:
     for lbl in y_train + y_test:
         if lbl not in labels:
             raise ValueError(f"y data label '{lbl}' not in label keys!")
-        
+
+    dropped_samples = None
+    if drop_duplicates:
+        test_set = set(x_test)
+        dropped_samples: list[str] = []
+        duplicate_indices: set[int] = set()
+
+        logger.info(f"'drop_duplicates' is true, dropping duplicates from *training* set...")
+        for idx, train_sample in enumerate(x_train):
+            if train_sample in test_set:
+                duplicate_indices.add(idx)
+                dropped_samples.append(train_sample)
+        x_train = [sample for idx, sample in enumerate(x_train) if idx not in duplicate_indices]
+        y_train = [label for idx, label in enumerate(y_train) if idx not in duplicate_indices]
+        logger.info(f"dropped {len(dropped_samples)} samples from training data that also appeared in the test data")
+
     dataset = RawDataset(
-        x_train=x_train,
-        x_test=x_test,
-        y_train=y_train,
-        y_test=y_test,
-        labels=labels
+        x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, labels=labels, dropped=dropped_samples
     )
 
     return dataset
