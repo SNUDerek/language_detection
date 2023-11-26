@@ -8,11 +8,10 @@ import numpy as np
 import torch
 import tqdm
 
-from sklearn.metrics import precision_score, recall_score, f1_score
 from torch.utils.data import DataLoader
 
-from language_detection.data import load_wili_2018_dataset, BytesDataset, batch_collate_function, get_mask_from_lengths
-from language_detection.model import TransformerClassifier, create_datasets
+from language_detection.data import load_wili_2018_dataset, batch_collate_function, get_mask_from_lengths
+from language_detection.model import TransformerClassifier, create_datasets, evaluate_model
 
 
 # todo: replace with loading from yaml/json for archiving trials
@@ -89,8 +88,8 @@ print(f"model loaded to cuda!")
 
 # initialize other objects and setup training
 global_step = 0
-ignore_index = -100
-mlm_criterion = torch.nn.CrossEntropyLoss(reduction="sum", ignore_index=ignore_index)
+ignore_index_value = -100
+mlm_criterion = torch.nn.CrossEntropyLoss(reduction="sum", ignore_index=ignore_index_value)
 clf_criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=init_lr)
 scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -101,8 +100,9 @@ scheduler = torch.optim.lr_scheduler.OneCycleLR(
     pct_start=warmup_pct,
 )
 
-# train model
+# training loop
 for epoch in range(total_epochs):
+    # train one epoch
     train_iterator = iter(train_dataloader)
     epoch_losses = []
     model.train()
@@ -119,7 +119,7 @@ for epoch in range(total_epochs):
         clf_logits, mlm_logits = model.forward(x, pad_mask)
         # calculate losses
         # for mlm, only backprop on the chosen (default 15%) indices
-        masked_y = ignore_index * torch.ones_like(y).to("cuda")
+        masked_y = ignore_index_value * torch.ones_like(y).to("cuda")
         for i in range(y.shape[0]):
             masked_y[i, mask_indices[i].long()] = y[i, mask_indices[i].long()]
         mlm_loss = mlm_criterion(torch.transpose(mlm_logits, 1, 2), masked_y)
@@ -136,12 +136,12 @@ for epoch in range(total_epochs):
         ttl_loss = mlm_loss + clf_loss
         ttl_loss.backward()
         if (batch_idx > 0 and batch_idx % accumulate_steps == 0) or (batch_idx == len(train_dataloader)):
-            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)  # type: ignore
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
 
-    # dev eval
+    # evaluate on withheld dev set
     print(f"[{datetime.datetime.now().isoformat()}] epoch {epoch+1} dev eval")
     time.sleep(0.5)
     model.eval()
@@ -161,19 +161,11 @@ for epoch in range(total_epochs):
             # calculate loss (clf only for eval)
             clf_loss = clf_criterion(clf_logits, targets)
             epoch_dev_loss.append(clf_loss.item())
-            epoch_targets += targets.detach().cpu().numpy().tolist()
-            epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
+            epoch_targets += targets.detach().cpu().numpy()
+            epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy()
         time.sleep(0.1)
-        micro_prc = precision_score(epoch_targets, epoch_predictions, average="micro")
-        micro_rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
-        micro_f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
-        macro_prc = precision_score(epoch_targets, epoch_predictions, average="macro")
-        macro_rcl = recall_score(epoch_targets, epoch_predictions, average="macro")
-        macro_f1b = f1_score(epoch_targets, epoch_predictions, average="macro")
         print(f"[{datetime.datetime.now().isoformat()}] dev clf loss : {np.mean(epoch_dev_loss):.5f}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro prc: {micro_prc:.5f},\tmacro {macro_prc:.5f}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro rcl: {micro_rcl:.5f},\tmacro {macro_rcl:.5f}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {micro_f1b:.5f},\tmacro {macro_f1b:.5f}")
+        dev_results = evaluate_model(set_name="dev", targets=epoch_targets, predictions=epoch_predictions)
         time.sleep(0.1)
 
         # save checkpoint
@@ -203,14 +195,7 @@ for epoch in range(total_epochs):
                     "trial_name": trial_name,
                     "seed": seed,
                 },
-                "results": {
-                    "micro_prc": micro_prc,
-                    "micro_rcl": micro_rcl,
-                    "micro_f1b": micro_f1b,
-                    "macro_prc": macro_prc,
-                    "macro_rcl": macro_rcl,
-                    "macro_f1b": macro_f1b,
-                },
+                "results": dev_results,
             },
             checkpoint_name,
         )
@@ -236,17 +221,9 @@ with torch.no_grad():
         # calculate loss (clf only for eval)
         clf_loss = clf_criterion(clf_logits, targets)
         epoch_test_loss.append(clf_loss.item())
-        epoch_targets += targets.detach().cpu().numpy().tolist()
-        epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
+        epoch_targets += targets.detach().cpu().numpy()
+        epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy()
     time.sleep(0.1)
-    micro_prc = precision_score(epoch_targets, epoch_predictions, average="micro")
-    micro_rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
-    micro_f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
-    macro_prc = precision_score(epoch_targets, epoch_predictions, average="macro")
-    macro_rcl = recall_score(epoch_targets, epoch_predictions, average="macro")
-    macro_f1b = f1_score(epoch_targets, epoch_predictions, average="macro")
     print(f"[{datetime.datetime.now().isoformat()}] test clf loss : {np.mean(epoch_test_loss):.5f}")
-    print(f"[{datetime.datetime.now().isoformat()}] dev micro prc: {micro_prc:.5f},\tmacro {macro_prc:.5f}")
-    print(f"[{datetime.datetime.now().isoformat()}] dev micro rcl: {micro_rcl:.5f},\tmacro {macro_rcl:.5f}")
-    print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {micro_f1b:.5f},\tmacro {macro_f1b:.5f}")
+    test_results = evaluate_model(set_name="test", targets=epoch_targets, predictions=epoch_predictions)
     time.sleep(0.1)

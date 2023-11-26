@@ -1,4 +1,8 @@
+import datetime
+
 import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score  # type: ignore
+
 from language_detection.data.data import BytesDataset, RawDataset
 
 
@@ -40,3 +44,27 @@ def create_datasets(
         is_training=False,
     )
     return train_dataset, dev_dataset, test_dataset
+
+
+def evaluate_model(
+    set_name: str, targets: np.ndarray | list[int], predictions: np.ndarray | list[int], print_values: bool = True
+) -> dict:
+    """evaluate precision, recall and f1 and optionally print results"""
+    micro_prc = precision_score(targets, predictions, average="micro")
+    micro_rcl = recall_score(targets, predictions, average="micro")
+    micro_f1b = f1_score(targets, predictions, average="micro")
+    macro_prc = precision_score(targets, predictions, average="macro")
+    macro_rcl = recall_score(targets, predictions, average="macro")
+    macro_f1b = f1_score(targets, predictions, average="macro")
+    if print_values:
+        print(f"[{datetime.datetime.now().isoformat()}] {set_name} micro prc: {micro_prc:.5f},\tmacro {macro_prc:.5f}")
+        print(f"[{datetime.datetime.now().isoformat()}] {set_name} micro rcl: {micro_rcl:.5f},\tmacro {macro_rcl:.5f}")
+        print(f"[{datetime.datetime.now().isoformat()}] {set_name} micro f1b: {micro_f1b:.5f},\tmacro {macro_f1b:.5f}")
+    return {
+        "micro_prc": micro_prc,
+        "micro_rcl": micro_rcl,
+        "micro_f1b": micro_f1b,
+        "macro_prc": macro_prc,
+        "macro_rcl": macro_rcl,
+        "macro_f1b": macro_f1b,
+    }
