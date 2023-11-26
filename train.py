@@ -15,6 +15,7 @@ from language_detection.data import load_wili_2018_dataset, BytesDataset, batch_
 from language_detection.model import TransformerClassifier, create_datasets
 
 
+# todo: replace with loading from yaml/json for archiving trials
 parser = argparse.ArgumentParser(description="train a language detection transformer classifier")
 parser.add_argument("--max_length", type=int, default=1024, help="maximum input sequence length, default 1024")
 parser.add_argument("--total_epochs", type=int, default=10, help="total number of training epochs, default 10")
@@ -68,11 +69,12 @@ test_dataloader = DataLoader(
     test_dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=batch_collate_function
 )
 
+num_classes = len(raw_data.idx2lang)
 print(f"train: {len(train_dataset)}, dev: {len(dev_dataset)}, test: {len(test_dataset)}")
 
 
 # setup model
-model = TransformerClassifier(num_classes=len(raw_data.idx2lang))
+model = TransformerClassifier(num_classes=num_classes)
 _ = model.to("cuda")
 for name, param in model.named_parameters():
     if not str(param.device).startswith("cuda"):
@@ -170,6 +172,8 @@ for epoch in range(total_epochs):
         print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {f1b}")
         time.sleep(0.1)
 
+        # save checkpoint
+        # todo: make functions for saving, loading
         checkpoint_name = pathlib.PurePath(save_path, f"{trial_name}-checkpoint-{global_step:08d}.pt")
         torch.save(
             {
