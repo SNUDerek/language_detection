@@ -43,20 +43,25 @@ def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawD
     if len(x_test) != len(y_test):
         raise ValueError(f"x_test {len(x_test)} lines != y_test {len(y_test)} lines!")
 
+    # map of language codes to full language names
     label_lines: list[str] = open(pathlib.Path(data_path, "labels.csv")).read().splitlines()
-    labels: dict[str, str] = dict([line.split(";")[:2] for line in label_lines[1:]])
-    if len(labels) != expected_languages:
-        raise ValueError(f"expected {expected_languages} languages, found {len(labels)}!")
+    code_lang_labels: dict[str, str] = dict([line.split(";")[:2] for line in label_lines[1:]])
+    if len(code_lang_labels) != expected_languages:
+        raise ValueError(f"expected {expected_languages} languages, found {len(code_lang_labels)}!")
+
+    # map of integer index to language code label (sorted)
+    lang_codes = sorted(code_lang_labels.keys())
+    idx2lang = dict([(idx, code) for idx, code in enumerate(lang_codes)])
+    lang2idx = dict([(code, idx) for idx, code in enumerate(lang_codes)])
 
     for lbl in y_train + y_test:
-        if lbl not in labels:
+        if lbl not in code_lang_labels:
             raise ValueError(f"y data label '{lbl}' not in label keys!")
 
     # optionally, remove duplicate data
-    dropped_samples = None
+    dropped_samples: list[str] = []
     if drop_duplicates:
         test_set = set(x_test)
-        dropped_samples: list[str] = []
         duplicate_indices: set[int] = set()
 
         logger.info(f"'drop_duplicates' is true, dropping duplicates from *training* set...")
@@ -69,7 +74,14 @@ def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawD
         logger.info(f"dropped {len(dropped_samples)} samples from training data that also appeared in the test data")
 
     dataset = RawDataset(
-        x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, labels=labels, dropped=dropped_samples
+        x_train=x_train,
+        x_test=x_test,
+        y_train=y_train,
+        y_test=y_test,
+        idx2lang=idx2lang,
+        lang2idx=lang2idx,
+        labels=code_lang_labels,
+        dropped=dropped_samples,
     )
 
     return dataset
