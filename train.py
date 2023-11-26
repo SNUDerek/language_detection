@@ -20,33 +20,36 @@ parser = argparse.ArgumentParser(description="train a language detection transfo
 parser.add_argument("--max_length", type=int, default=1024, help="maximum input sequence length, default 1024")
 parser.add_argument("--total_epochs", type=int, default=10, help="total number of training epochs, default 10")
 parser.add_argument("--accumulate_steps", type=int, default=4, help="number of gradient accumulation steps, default 4")
+parser.add_argument("--clip_grad_norm", type=int, default=4, help="gradient norm clipping value, default 5")
+parser.add_argument("--warmup_pct", type=float, default=0.1, help="warmup epochs percentage, default 0.1")
 parser.add_argument("--init_lr", type=float, default=0.0001, help="initial learning rate, default 0.0001")
 parser.add_argument("--max_lr", type=float, default=0.001, help="maximum learning rate, default 0.001")
-parser.add_argument("--warmup_pct", type=float, default=0.1, help="warmup epochs percentage, default 0.1")
 parser.add_argument("--disp_loss_win", type=int, default=5, help="running loss window average n, default 5")
 parser.add_argument("--batch_size", type=int, default=32, help="batch size, default 32")
 parser.add_argument(
     "--data_path", type=str, default="./datasets/WiLi_2018", help="path to data, default ./datasets/WiLi_2018"
 )
 parser.add_argument(
-    "--save_path", type=str, default="./experiments", help="path to save the results, default './experiments'"
+    "--save_path", type=str, default="./checkpoints", help="path to save the results, default './checkpoints'"
 )
 parser.add_argument("--trial_name", type=str, default="wili2018", help="name of the model prefix, default 'wili2018'")
 parser.add_argument("--seed", type=int, default=1337, help="seed for random number generation, default '1337'")
 args = parser.parse_args()
 
+# todo: print args
 max_length = args.max_length
-total_epochs = args.max_length
-accumulate_steps = args.max_length
-init_lr = args.max_length
-max_lr = args.max_length
-warmup_pct = args.max_length
-disp_loss_win = args.max_length
-batch_size = args.max_length
-data_path = args.max_length
-save_path = args.max_length
-trial_name = args.max_length
-seed = args.max_length
+total_epochs = args.total_epochs
+accumulate_steps = args.accumulate_steps
+clip_grad_norm = args.clip_grad_norm
+warmup_pct = args.warmup_pct
+init_lr = args.init_lr
+max_lr = args.max_lr
+disp_loss_win = args.disp_loss_win
+batch_size = args.batch_size
+data_path = args.data_path
+save_path = args.save_path
+trial_name = args.trial_name
+seed = args.seed
 
 
 random.seed(seed)
@@ -55,6 +58,8 @@ torch.manual_seed(seed)
 
 
 # setup data
+pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+
 raw_data = load_wili_2018_dataset(data_path)
 
 train_dataset, dev_dataset, test_dataset = create_datasets(raw_data, max_seq_len=1024, dev_pct=0.10)
@@ -72,14 +77,14 @@ test_dataloader = DataLoader(
 num_classes = len(raw_data.idx2lang)
 print(f"train: {len(train_dataset)}, dev: {len(dev_dataset)}, test: {len(test_dataset)}")
 
-
 # setup model
+# todo: check for cuda availability and set device properly
 model = TransformerClassifier(num_classes=num_classes)
 _ = model.to("cuda")
 for name, param in model.named_parameters():
     if not str(param.device).startswith("cuda"):
         print(f"param '{name}' is on device '{param.device}'")
-print(f"all unmentioned params on cuda!")
+print(f"model loaded to cuda!")
 
 
 # initialize other objects and setup training
@@ -131,6 +136,7 @@ for epoch in range(total_epochs):
         ttl_loss = mlm_loss + clf_loss
         ttl_loss.backward()
         if (batch_idx > 0 and batch_idx % accumulate_steps == 0) or (batch_idx == len(train_dataloader)):
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad_norm)
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
@@ -139,7 +145,7 @@ for epoch in range(total_epochs):
     print(f"[{datetime.datetime.now().isoformat()}] epoch {epoch+1} dev eval")
     time.sleep(0.5)
     model.eval()
-    epoch_dev_loss = []
+    epoch_dev_loss: list[float] = []
     epoch_targets = []
     epoch_predictions = []
     with torch.no_grad():
@@ -151,30 +157,28 @@ for epoch in range(total_epochs):
             y = y.to("cuda")
             targets = targets.to("cuda")
             pad_mask = get_mask_from_lengths(seq_lens, max_length, x.device)
-            # model forward
             clf_logits, mlm_logits = model.forward(x, pad_mask)
-            # calculate losses
-            masked_y = -1 * torch.ones_like(y).to("cuda")
-            for i in range(y.shape[0]):
-                masked_y[i, mask_indices[i].long()] = y[i, mask_indices[i].long()]
-            mlm_loss = mlm_criterion(torch.transpose(mlm_logits, 1, 2), masked_y)
+            # calculate loss (clf only for eval)
             clf_loss = clf_criterion(clf_logits, targets)
             epoch_dev_loss.append(clf_loss.item())
             epoch_targets += targets.detach().cpu().numpy().tolist()
             epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
         time.sleep(0.1)
-        prc = precision_score(epoch_targets, epoch_predictions, average="micro")
-        rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
-        f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
-        print(f"[{datetime.datetime.now().isoformat()}] dev clf loss : {epoch_dev_loss:.5f}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro prc: {prc}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro rcl: {rcl}")
-        print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {f1b}")
+        micro_prc = precision_score(epoch_targets, epoch_predictions, average="micro")
+        micro_rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
+        micro_f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
+        macro_prc = precision_score(epoch_targets, epoch_predictions, average="macro")
+        macro_rcl = recall_score(epoch_targets, epoch_predictions, average="macro")
+        macro_f1b = f1_score(epoch_targets, epoch_predictions, average="macro")
+        print(f"[{datetime.datetime.now().isoformat()}] dev clf loss : {np.mean(epoch_dev_loss):.5f}")
+        print(f"[{datetime.datetime.now().isoformat()}] dev micro prc: {micro_prc:.5f},\tmacro {macro_prc:.5f}")
+        print(f"[{datetime.datetime.now().isoformat()}] dev micro rcl: {micro_rcl:.5f},\tmacro {macro_rcl:.5f}")
+        print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {micro_f1b:.5f},\tmacro {macro_f1b:.5f}")
         time.sleep(0.1)
 
         # save checkpoint
         # todo: make functions for saving, loading
-        checkpoint_name = pathlib.PurePath(save_path, f"{trial_name}-checkpoint-{global_step:08d}.pt")
+        checkpoint_name = str(pathlib.PurePath(save_path, f"{trial_name}-checkpoint-{global_step:08d}.pt"))
         torch.save(
             {
                 "epoch": epoch,
@@ -199,6 +203,14 @@ for epoch in range(total_epochs):
                     "trial_name": trial_name,
                     "seed": seed,
                 },
+                "results": {
+                    "micro_prc": micro_prc,
+                    "micro_rcl": micro_rcl,
+                    "micro_f1b": micro_f1b,
+                    "macro_prc": macro_prc,
+                    "macro_rcl": macro_rcl,
+                    "macro_f1b": macro_f1b,
+                },
             },
             checkpoint_name,
         )
@@ -221,21 +233,20 @@ with torch.no_grad():
         pad_mask = get_mask_from_lengths(seq_lens, max_length, x.device)
         # model forward
         clf_logits, mlm_logits = model.forward(x, pad_mask)
-        # calculate losses
-        masked_y = -1 * torch.ones_like(y).to("cuda")
-        for i in range(y.shape[0]):
-            masked_y[i, mask_indices[i].long()] = y[i, mask_indices[i].long()]
-        mlm_loss = mlm_criterion(torch.transpose(mlm_logits, 1, 2), masked_y)
+        # calculate loss (clf only for eval)
         clf_loss = clf_criterion(clf_logits, targets)
         epoch_test_loss.append(clf_loss.item())
         epoch_targets += targets.detach().cpu().numpy().tolist()
         epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
     time.sleep(0.1)
-    prc = precision_score(epoch_targets, epoch_predictions, average="micro")
-    rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
-    f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
-    print(f"[{datetime.datetime.now().isoformat()}] test clf loss : {epoch_test_loss:.5f}")
-    print(f"[{datetime.datetime.now().isoformat()}] test micro prc: {prc}")
-    print(f"[{datetime.datetime.now().isoformat()}] test micro rcl: {rcl}")
-    print(f"[{datetime.datetime.now().isoformat()}] test micro f1b: {f1b}")
+    micro_prc = precision_score(epoch_targets, epoch_predictions, average="micro")
+    micro_rcl = recall_score(epoch_targets, epoch_predictions, average="micro")
+    micro_f1b = f1_score(epoch_targets, epoch_predictions, average="micro")
+    macro_prc = precision_score(epoch_targets, epoch_predictions, average="macro")
+    macro_rcl = recall_score(epoch_targets, epoch_predictions, average="macro")
+    macro_f1b = f1_score(epoch_targets, epoch_predictions, average="macro")
+    print(f"[{datetime.datetime.now().isoformat()}] test clf loss : {np.mean(epoch_test_loss):.5f}")
+    print(f"[{datetime.datetime.now().isoformat()}] dev micro prc: {micro_prc:.5f},\tmacro {macro_prc:.5f}")
+    print(f"[{datetime.datetime.now().isoformat()}] dev micro rcl: {micro_rcl:.5f},\tmacro {macro_rcl:.5f}")
+    print(f"[{datetime.datetime.now().isoformat()}] dev micro f1b: {micro_f1b:.5f},\tmacro {macro_f1b:.5f}")
     time.sleep(0.1)

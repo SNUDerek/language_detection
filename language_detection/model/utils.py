@@ -33,7 +33,7 @@ def create_datasets(
         is_training=True,
     )
     test_dataset = BytesDataset(
-        texts=raw_data.y_test,
+        texts=raw_data.x_test,
         languages=raw_data.y_test,
         mapping=raw_data.lang2idx,
         max_length=max_seq_len,
