@@ -4,9 +4,19 @@ just playing around with language detection
 
 ## requirements and setup
 
-this project was programmed in python 3.10.11 and uses `pipenv` to manage packages.
+this project was programmed in python 3.10.
 
-after installing with `pip install pipenv` you may activate shell with `pipenv shell` or run a script with `pipenv run <script>`
+this project uses cuda-enabled installation of `pytorch` 2.1.
+
+other required packages are listed in `requirements.txt`, though i used `conda` for actual installation of some packages. 
+
+## description
+
+BERT based classification
+
+- jointly train MLM and classifier
+- MLM by default uses the BERT 15% rate, with BERT defaults (80/10/10 mask/replace/keep) 
+- drop the next-sentence-prediction (roberta?)
 
 ## api
 
@@ -33,6 +43,8 @@ print(wiki_dataset.__annotations__)
     'x_test': list[str],
     'y_train': list[str],
     'y_test': list[str],
-    'labels': dict[str | int, str],
+    'idx2lang': dict[int, str],
+    'lang2idx': dict[str, int],
+    'labels': dict[str, str] | None,
     'dropped': list[str] | None}
 ```
