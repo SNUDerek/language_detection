@@ -9,6 +9,7 @@ class TrainingConfig:
     batch_size: int
     clip_grad_norm: float
     data_path: str
+    debug: bool
     dev_pct: float
     disp_loss_win: int
     init_lr: int

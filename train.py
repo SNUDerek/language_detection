@@ -21,21 +21,22 @@ DEFALT_SAVEPATH = "./experiments"
 parser = argparse.ArgumentParser(description="train a language detection transformer classifier")
 parser.add_argument("--accumulate_steps", type=int, default=4, help="number of gradient accumulation steps, default 4")
 parser.add_argument("--batch_size", type=int, default=32, help="batch size, default 32")
-parser.add_argument("--clip_grad_norm", type=float, default=5, help="gradient norm clipping value, default 5")
+parser.add_argument("--clip_grad_norm", type=float, default=8, help="gradient norm clipping value, default 8")
 parser.add_argument("--data_path", type=str, default=DEFAULT_DATASET, help=f"path to data, default {DEFAULT_DATASET}")
+parser.add_argument("--debug", action="store_true", help="run in debug mode, which only runs a few steps per epoch")
 parser.add_argument("--dev_pct", type=float, default=0.1, help="percent of train data withheld as dev, default 0.1")
 parser.add_argument("--disp_loss_win", type=int, default=5, help="running loss window average n, default 5")
-parser.add_argument("--init_lr", type=float, default=0.0001, help="initial learning rate, default 0.0001")
+parser.add_argument("--init_lr", type=float, default=0.00001, help="initial learning rate, default 0.00001")
 parser.add_argument("--max_length", type=int, default=1024, help="maximum input sequence length, default 1024")
 parser.add_argument("--max_lr", type=float, default=0.001, help="maximum learning rate, default 0.001")
 parser.add_argument("--save_base", type=str, default=DEFALT_SAVEPATH, help=f"checkpoint dir, default {DEFALT_SAVEPATH}")
-parser.add_argument("--seed", type=int, default=1337, help="seed for random number generation, default '1337'")
-parser.add_argument("--total_epochs", type=int, default=10, help="total number of training epochs, default 10")
+parser.add_argument("--seed", type=int, default=0, help="seed for random number generation, default '0'")
+parser.add_argument("--total_epochs", type=int, default=20, help="total number of training epochs, default 20")
 parser.add_argument("--trial_name", type=str, default="wili2018", help="name of the model prefix, default 'wili2018'")
 parser.add_argument("--warmup_pct", type=float, default=0.1, help="warmup epochs percentage, default 0.1")
 args = parser.parse_args()
 
-config = TrainingConfig(**args.vars())
+config = TrainingConfig(**vars(args))
 
 random.seed(config.seed)
 np.random.seed(config.seed)
@@ -48,6 +49,13 @@ pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
 print(f"\nloading data from '{config.data_path}'")
 raw_data = load_wili_2018_dataset(config.data_path)
+if config.debug:
+    print(f"debug mode is true, so truncate train, test to few elements only")
+    raw_data.x_train = raw_data.x_train[:2048]
+    raw_data.y_train = raw_data.y_train[:2048]
+    raw_data.x_test = raw_data.x_test[:1024]
+    raw_data.y_test = raw_data.y_test[:1024]
+
 train_dataset, dev_dataset, test_dataset = create_datasets(
     raw_data, max_seq_len=config.max_length, dev_pct=config.dev_pct
 )
@@ -136,8 +144,8 @@ for epoch in range(config.total_epochs):
     time.sleep(0.5)
     model.eval()
     epoch_dev_loss: list[float] = []
-    epoch_targets = []
-    epoch_predictions = []
+    dev_epoch_targets = []
+    dev_epoch_predictions = []
     with torch.no_grad():
         dev_iterator = iter(dev_dataloader)
         for batch_idx, minibatch in enumerate(pbar := tqdm.tqdm(dev_iterator, total=len(dev_iterator))):
@@ -151,15 +159,15 @@ for epoch in range(config.total_epochs):
             # calculate loss (clf only for eval)
             clf_loss = clf_criterion(clf_logits, targets)
             epoch_dev_loss.append(clf_loss.item())
-            epoch_targets += targets.detach().cpu().numpy()
-            epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy()
+            dev_epoch_targets += targets.detach().cpu().numpy().tolist()
+            dev_epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
         time.sleep(0.1)
         print(f"[{datetime.datetime.now().isoformat()}] dev clf loss : {np.mean(epoch_dev_loss):.5f}")
-        dev_results = evaluate_model(set_name="dev", targets=epoch_targets, predictions=epoch_predictions)
+        dev_results = evaluate_model(set_name="dev", targets=dev_epoch_targets, predictions=dev_epoch_predictions)
         time.sleep(0.1)
 
         # save checkpoint
-        checkpoint_name = str(pathlib.PurePath(save_path, f"{config.trial_name}-checkpoint-{global_step:08d}.pt"))
+        checkpoint_name = str(pathlib.PurePath(save_path, f"{config.trial_name}-checkpoint-{epoch+1:06d}.pt"))
         torch.save(
             {
                 "epoch": epoch,
@@ -181,8 +189,8 @@ for epoch in range(config.total_epochs):
 print(f"[{datetime.datetime.now().isoformat()}] starting evaluation on test set")
 model.eval()
 epoch_test_loss = []
-epoch_targets = []
-epoch_predictions = []
+test_epoch_targets = []
+test_epoch_predictions = []
 with torch.no_grad():
     test_iterator = iter(test_dataloader)
     for batch_idx, minibatch in enumerate(pbar := tqdm.tqdm(test_iterator, total=len(test_iterator))):
@@ -197,9 +205,9 @@ with torch.no_grad():
         # calculate loss (clf only for eval)
         clf_loss = clf_criterion(clf_logits, targets)
         epoch_test_loss.append(clf_loss.item())
-        epoch_targets += targets.detach().cpu().numpy()
-        epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy()
+        test_epoch_targets += targets.detach().cpu().numpy().tolist()
+        test_epoch_predictions += clf_logits.max(1).indices.detach().cpu().numpy().tolist()
     time.sleep(0.1)
     print(f"[{datetime.datetime.now().isoformat()}] test clf loss : {np.mean(epoch_test_loss):.5f}")
-    test_results = evaluate_model(set_name="test", targets=epoch_targets, predictions=epoch_predictions)
+    test_results = evaluate_model(set_name="test", targets=test_epoch_targets, predictions=test_epoch_predictions)
     time.sleep(0.1)
