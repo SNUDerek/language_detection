@@ -11,7 +11,7 @@ def create_datasets(
 ) -> tuple[BytesDataset, BytesDataset, BytesDataset]:
     """generate train, dev and test pytorch datasets"""
 
-    if dev_pct >= 1.0:
+    if dev_pct < 0 or dev_pct >= 1.0:
         raise ValueError(f"dev pct must be between 0.0 and 1.0, recommend 0.1 to 0.2")
     if max_seq_len < 1:
         raise ValueError(f"max_seq_len must be greater than 0, recommend 512 or 1024")
