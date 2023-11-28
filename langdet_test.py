@@ -35,7 +35,7 @@ random.seed(config.seed)
 np.random.seed(config.seed)
 torch.manual_seed(config.seed)
 
-print(f"\nloading model from checkpoint '{checkpoint}'")
+print(f"\nloading model from checkpoint '{args.checkpoint_file}'")
 model = TransformerClassifier(num_classes=checkpoint["num_classes"])
 model.load_state_dict(checkpoint["model_state_dict"])
 if torch.cuda.is_available():

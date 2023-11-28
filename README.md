@@ -2,9 +2,17 @@
 
 a transformer encoder classifier for language identification.
 
+this was done in partial completion of an application screening assignment.
+
+if viewing offline, you can view the online version here:
+
+[https://github.com/SNUDerek/language_detection](https://github.com/SNUDerek/language_detection)
+
 ## about
 
 this is an example of a basic transformer encoder (BERT-style) classifier trained on the language identification (LID) task.
+
+the obvious solution would be to take a pretrained multilingual encoder and fine-tune it on my dataset, (*and the smart alec way would be to make a function that calls GPT-4 with a prompt asking to identify a language*) but i thought that was against the spirit of the assignment, so i implemented and trained my own solution according to my own self-imposed guidelines:
 
 - i wanted the implementation to be non-trivial and educational
     - trained on WiLI-2018, a large dataset with 235,000 total paragraphs in 235 languages
@@ -16,6 +24,20 @@ this is an example of a basic transformer encoder (BERT-style) classifier traine
     - no pretrained models used, and no pre-training on external datasets
     - no subword tokenization; input is unicode byte sequence as integers `0~256` + control tokens
     - due to time constraints and curiosity, model is trained on classification and masked LM objectives jointly 
+
+### results
+
+these results are from the included checkpoint `./experiments/wili2018/wili2018-checkpoint-000020.pt` (*github version has no checkpoints included*)
+
+```
+classification results, test set:
+
+macro precision: 0.91144
+macro recall:    0.90686
+macro F1:        0.90768
+```
+
+see below for best- and worst-performance langauges, and see the `analysis.ipynb` for test set macro F1 score and class F1 score statistics, along with some error analysis.
 
 ### references
 
@@ -92,11 +114,50 @@ if you want to only run the evaluation on the test set, you can use `langdet_tes
 
 this will load a pretrained checkpoint and run only test set inference, and save a TSV file.
 
+you can check `analysis.ipynb` for a brief error analysis of the data.
+
+## best and worst performing languages
+
+from `analysis.ipynb`
+
+```
+ten languages by highest F1 score:
+
+lang: nan              nan     	F1: 0.99501, prc: 0.99205, rcl: 0.99800
+lang: Maori            mri     	F1: 0.99599, prc: 0.99799, rcl: 0.99400
+lang: Malagasy         mlg     	F1: 0.99600, prc: 0.99600, rcl: 0.99600
+lang: Uighur           uig     	F1: 0.99699, prc: 1.00000, rcl: 0.99400
+lang: Lojban           jbo     	F1: 0.99800, prc: 0.99602, rcl: 1.00000
+lang: Burmese          mya     	F1: 0.99800, prc: 1.00000, rcl: 0.99600
+lang: Tibetan          bod     	F1: 0.99900, prc: 1.00000, rcl: 0.99800
+lang: Dhivehi          div     	F1: 0.99900, prc: 1.00000, rcl: 0.99800
+lang: Central Kurdish  ckb     	F1: 1.00000, prc: 1.00000, rcl: 1.00000
+lang: Navajo           nav     	F1: 1.00000, prc: 1.00000, rcl: 1.00000
+```
+
+```
+ten languages by lowest F1 score:
+
+lang: Croatian         hrv     	F1: 0.44250, prc: 0.43156, rcl: 0.45400
+lang: Bosnian          bos     	F1: 0.44815, prc: 0.55457, rcl: 0.37600
+lang: Pampanga         pam     	F1: 0.46772, prc: 0.82741, rcl: 0.32600
+lang: Serbo-Croatian   hbs     	F1: 0.47122, prc: 0.42810, rcl: 0.52400
+lang: Indonesian       ind     	F1: 0.48993, prc: 0.55584, rcl: 0.43800
+lang: English          eng     	F1: 0.54071, prc: 0.43890, rcl: 0.70400
+lang: Malay            msa     	F1: 0.56330, prc: 0.55299, rcl: 0.57400
+lang: German           deu     	F1: 0.60388, prc: 0.47138, rcl: 0.84000
+lang: Banyumasan       map-bms 	F1: 0.61326, prc: 0.53858, rcl: 0.71200
+lang: Chavacano        cbk     	F1: 0.66294, prc: 0.62021, rcl: 0.71200
+```
+
+a qualitative analysis of false-negatives and false-positives for English and German show that there appear to be a number of mis-tagged elements in the test set.
+
 ## future work
 
-there are many things i'd like to do to enhance the project:
+there are many things i'd like to do to enhance the project if given more time:
 
 - support other popular language identification datasets
+- compare my bytes input approach to the alternatives i proposed above (e.g. fine-tuning a pretrained model)
 - track training loss with integration with something like weights & biases or tensorboardx
 - comparison of model hyperparameter settings, scripts for hyperparameter tuning for model architecture
 - more error analysis
