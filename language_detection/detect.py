@@ -4,15 +4,12 @@ import random
 import numpy as np
 import torch
 
-from loguru import logger
-
 from language_detection.data import transform_text, get_mask_from_lengths
 from language_detection.model import TrainingConfig, TransformerClassifier
 
 
 class LanguageDetector:
     def __init__(self, checkpoint_filepath: str):
-        logger.info(f"initializing detector from checkpoint '{checkpoint_filepath}'...")
         self.checkpoint = self.load_checkpoint(checkpoint_filepath)
         if "output_mapping" not in self.checkpoint:
             raise ValueError("checkpoint file is missing 'output_mapping'!")
@@ -22,7 +19,6 @@ class LanguageDetector:
         random.seed(self.config.seed)
         np.random.seed(self.config.seed)
         torch.manual_seed(self.config.seed)
-        logger.info(f"done! (using device '{self.device}')")
 
     def load_checkpoint(self, checkpoint_path: str):
         if not pathlib.Path(checkpoint_path).is_file():

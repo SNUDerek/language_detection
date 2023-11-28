@@ -14,9 +14,9 @@ args = parser.parse_args()
 
 lang_detector = LanguageDetector(args.checkpoint)
 
-print("\nTransformer Language Classification Demo by Derek Homel")
-print("this model was trained on the WiLI-2018 dataset.")
 if args.live:
+    print("\nTransformer Language Classification Demo by Derek Homel")
+    print("this model was trained on the WiLI-2018 dataset.")
     print("enter a 1~2 sentence string to detect its language.")
     print("enter 'q', 'quit' or 'exit' to exit.")
     query = TEXT_SAMPLE
@@ -26,11 +26,9 @@ if args.live:
             break
         prediction = lang_detector.predict(query)
         print(f"language: {prediction}")
+    print("\nthanks, bye!")
 
 else:
     query = args.input
-    print(f"\nquery: {query}")
     prediction = lang_detector.predict(query)
-    print(f"language: {prediction}")
-
-print("\nthanks, bye!")
+    print(prediction)
