@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser(description="train a language detection transfo
 parser.add_argument("--checkpoint_file", type=str, required=True, help=f"filepath to checkpoint file")
 parser.add_argument("--batch_size", type=int, default=32, help="batch size, default 32")
 parser.add_argument("--data_path", type=str, default=DEFAULT_DATASET, help=f"path to data, default {DEFAULT_DATASET}")
+parser.add_argument("--debug", action="store_true", help="run in debug mode, which only runs a few steps per epoch")
 parser.add_argument("--out_file", type=str, default="testset.tsv", help="filepath for output, default 'testset.tsv'")
 args = parser.parse_args()
 
@@ -29,6 +30,8 @@ if not pathlib.Path(args.checkpoint_file).is_file():
     raise ValueError(f"checkpoint file '{args.checkpoint_file}' does not exist!")
 checkpoint = torch.load(args.checkpoint_file)
 config = TrainingConfig(**checkpoint["config"])
+# allow overriding saved training debug setting!
+config.debug = args.debug
 random.seed(config.seed)
 np.random.seed(config.seed)
 torch.manual_seed(config.seed)
