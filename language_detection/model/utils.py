@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score  # type: ignore
 
 from language_detection.data.data import BytesDataset, RawDataset
@@ -68,3 +69,29 @@ def evaluate_model(
         "macro_rcl": macro_rcl,
         "macro_f1b": macro_f1b,
     }
+
+
+def export_results_tsv(
+    samples: list[str],
+    targets: list[int],
+    predictions: list[int],
+    idx_mapping: dict,
+    output_filename: str,
+    desc_mapping: dict | None = None,
+):
+    """save tsv of results"""
+    if not (len(samples) == len(targets) == len(predictions)):
+        raise ValueError(f"samples, targets, predictions lengths not equal!")
+    true_codes = [idx_mapping[p] for p in targets]
+    pred_codes = [idx_mapping[p] for p in predictions]
+    col_ord = ["true_label", "pred_label", "sample"]
+    df_data = {"true_label": true_codes, "pred_label": pred_codes, "sample": samples}
+    if desc_mapping:
+        true_names = [desc_mapping[p] for p in true_codes]
+        pred_names = [desc_mapping[p] for p in pred_codes]
+        col_ord = ["true_label", "true_name", "pred_label", "pred_name", "sample"]
+        df_data["true_name"] = true_names
+        df_data["pred_name"] = pred_names
+    df = pd.DataFrame.from_dict(df_data, orient="index").transpose()
+    df = df[col_ord]
+    df.to_csv(output_filename, sep="\t")

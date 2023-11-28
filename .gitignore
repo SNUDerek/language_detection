@@ -157,7 +157,7 @@ datasets/*/*
 
 .vscode
 
-checkpoints/**.pt
+experiments/**/**.pt
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

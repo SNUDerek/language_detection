@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 
 from language_detection.data import load_wili_2018_dataset, batch_collate_function, get_mask_from_lengths
 from language_detection.model import TrainingConfig, TransformerClassifier, create_datasets, evaluate_model
+from language_detection.model.utils import export_results_tsv
 
 
 DEFAULT_DATASET = "./datasets/WiLi_2018"
@@ -176,6 +177,7 @@ for epoch in range(config.total_epochs):
                 "optimizer_state_dict": optimizer.state_dict(),
                 "scheduler_state_dict": scheduler.state_dict(),
                 "epoch_losses": epoch_losses,
+                "num_classes": num_classes,
                 "output_mapping": raw_data.idx2lang,
                 "extended_labels": raw_data.labels,
                 "config": dataclasses.asdict(config),
@@ -211,3 +213,14 @@ with torch.no_grad():
     print(f"[{datetime.datetime.now().isoformat()}] test clf loss : {np.mean(epoch_test_loss):.5f}")
     test_results = evaluate_model(set_name="test", targets=test_epoch_targets, predictions=test_epoch_predictions)
     time.sleep(0.1)
+
+tsv_save_path = str(pathlib.PurePath(save_path, "testset.tsv"))
+print(f"writing test results to '{tsv_save_path}'")
+export_results_tsv(
+    samples=raw_data.x_test,
+    targets=test_epoch_targets,
+    predictions=test_epoch_predictions,
+    idx_mapping=raw_data.idx2lang,
+    output_filename=tsv_save_path,
+    desc_mapping=raw_data.labels,
+)
