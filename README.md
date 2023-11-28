@@ -37,7 +37,7 @@ macro recall:    0.90686
 macro F1:        0.90768
 ```
 
-see below for best- and worst-performance langauges, and see the `analysis.ipynb` for test set macro F1 score and class F1 score statistics, along with some error analysis.
+see below for best- and worst-performance languages, and see the `analysis.ipynb` for test set macro F1 score and class F1 score statistics, along with some error analysis.
 
 ### references
 
@@ -51,7 +51,7 @@ like RoBERTa, i used dynamic masks for the masked LM objective, dropped next-sen
 
 [Byte-based Multilingual NMT for Endangered Languages](https://aclanthology.org/2022.coling-1.388/) Zhang and Xu, 2022
 
-i'm sure there is a large body of using byte-based inputs, but i first saw the idea in this paper
+there is a large body of using byte-based inputs, but i first saw the idea in this paper
 
 ## requirements
 
