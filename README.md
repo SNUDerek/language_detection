@@ -1,12 +1,39 @@
 # language_detection
 
-just playing around with language detection
+a transformer encoder classifier for language identification.
 
-## requirements and setup
+## about
 
-this project was programmed in python 3.10.
+this is an example of a basic transformer encoder (BERT-style) classifier trained on the language identification (LID) task.
 
-this project relies on a cuda-enabled installation of `pytorch` 2.1 for training.
+- i wanted the implementation to be non-trivial and educational
+    - trained on WiLI-2018, a large dataset with 235,000 total paragraphs in 235 languages
+    - decided to use modern transformer-based architecture
+    - implemented the model and training loop in `pytorch` without external libraries (`huggingface` etc.)
+    - as a development challenge, used newer python and tried to keep code relatively organized and typed, with usability in mind
+
+- i wanted the solution to be unique and experiment with my own ideas
+    - no pretrained models used, and no pre-training on external datasets
+    - no subword tokenization; input is unicode byte sequence as integers `0~256` + control tokens
+    - due to time constraints and curiosity, model is trained on classification and masked LM objectives jointly 
+
+### references
+
+[BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805), Devlin, *et al.* 2018
+
+from BERT, i adopted the basic transformer encoder classification architecture
+
+[RoBERTa: A Robustly Optimized BERT Pretraining Approach](https://arxiv.org/abs/1907.11692) Liu, *et al.* 2019
+
+like RoBERTa, i used dynamic masks for the masked LM objective, dropped next-sentence prediction, and trained on long sequences
+
+[Byte-based Multilingual NMT for Endangered Languages](https://aclanthology.org/2022.coling-1.388/) Zhang and Xu, 2022
+
+i'm sure there is a large body of using byte-based inputs, but i first saw the idea in this paper
+
+## requirements
+
+this project was programmed in python 3.10. it relies on a cuda-enabled installation of `pytorch` 2.1 for training.
 
 required packages are listed in `requirements.txt`, though i used `conda` for actual installation of some packages. 
 
@@ -64,3 +91,13 @@ the included sample model is trained with the default parameters.
 if you want to only run the evaluation on the test set, you can use `langdet_test.py`.
 
 this will load a pretrained checkpoint and run only test set inference, and save a TSV file.
+
+## future work
+
+there are many things i'd like to do to enhance the project:
+
+- support other popular language identification datasets
+- track training loss with integration with something like weights & biases or tensorboardx
+- comparison of model hyperparameter settings, scripts for hyperparameter tuning for model architecture
+- more error analysis
+- better inference methods, such as web-based inference server
