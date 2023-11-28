@@ -1,4 +1,25 @@
+from dataclasses import dataclass
+
 import torch
+
+
+@dataclass
+class TrainingConfig:
+    accumulate_steps: int
+    batch_size: int
+    clip_grad_norm: float
+    data_path: str
+    debug: bool
+    dev_pct: float
+    disp_loss_win: int
+    init_lr: int
+    max_length: int
+    max_lr: int
+    save_base: str
+    seed: int
+    total_epochs: int
+    trial_name: str
+    warmup_pct: float
 
 
 class TransformerClassifier(torch.nn.Module):
@@ -23,7 +44,6 @@ class TransformerClassifier(torch.nn.Module):
         - ffn_dims (int) : transformer ffn dimensions, default 1024
         - attn_heads (int) : transformer attention heads, default 4
         - activation (str) : transformer activation, choose 'relu' or 'gelu', default "gelu"
-
         """
         super().__init__()
 
