@@ -159,6 +159,7 @@ a qualitative analysis of false-negatives and false-positives for English and Ge
 
 there are many things i'd like to do to enhance the project if given more time:
 
+- unit tests
 - support other popular language identification datasets
 - compare my bytes input approach to the alternatives i proposed above (e.g. fine-tuning a pretrained model)
 - track training loss with integration with something like weights & biases or tensorboardx
