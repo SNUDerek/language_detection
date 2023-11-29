@@ -12,7 +12,7 @@ if viewing offline, you can view the online version here:
 
 this is an example of a basic transformer encoder (BERT-style) classifier trained on the language identification (LID) task.
 
-the obvious solution would be to take a pretrained multilingual encoder and fine-tune it on my dataset, (*and the smart alec way would be to make a function that calls GPT-4 with a prompt asking to identify a language*) but i thought that was against the spirit of the assignment, so i implemented and trained my own solution according to my own self-imposed guidelines:
+the obvious solution would be to take a pretrained multilingual encoder and fine-tune it on my dataset (*and the smart alec way would be to make a function that calls GPT-4 with a prompt asking to identify a language*), but i thought that was against the spirit of the assignment, so i implemented and trained my own solution according to my own self-imposed guidelines:
 
 - i wanted the implementation to be non-trivial and educational
     - trained on WiLI-2018, a large dataset with 235,000 total paragraphs in 235 languages
@@ -27,7 +27,8 @@ the obvious solution would be to take a pretrained multilingual encoder and fine
 
 ### results
 
-these results are from the included checkpoint `./experiments/wili2018/wili2018-checkpoint-000020.pt` (*github version has no checkpoints included*)
+these results are from the included checkpoint `./experiments/wili2018/wili2018-checkpoint-000020.pt`  
+(*github version has no checkpoints included*)
 
 ```
 classification results, test set:
@@ -150,7 +151,7 @@ lang: Banyumasan       map-bms 	F1: 0.61326, prc: 0.53858, rcl: 0.71200
 lang: Chavacano        cbk     	F1: 0.66294, prc: 0.62021, rcl: 0.71200
 ```
 
-a qualitative analysis of false-negatives and false-positives for English and German show that there appear to be a number of mis-tagged elements in the test set.
+a qualitative analysis of false-negatives and false-positives for English and German show that there appear to be a number of mis-tagged elements in the test set. please see the notebook for details.
 
 ## future work
 
