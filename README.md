@@ -66,6 +66,8 @@ required packages are listed in `requirements.txt`, though i used `conda` for ac
 
 you can run inference for a single sample, or run it in a "live" demo mode.
 
+you can specify a trained checkpoint to load with `--checkpoint_file`; offline version includes a default checkpoint.
+
 single example:
 
 ```
