@@ -7,12 +7,12 @@ TEXT_SAMPLE = "안녕, 세상아! 다음은 한국어 텍스트 예시입니다.
 DEFAULT_CKPT = "./experiments/wili2018/wili2018-checkpoint-000020.pt"
 
 parser = argparse.ArgumentParser(description="train a language detection transformer classifier")
-parser.add_argument("--checkpoint", type=str, default=DEFAULT_CKPT, help=f"path to checkpoint, default {DEFAULT_CKPT}")
+parser.add_argument("--checkpoint_file", type=str, default=DEFAULT_CKPT, help=f"checkpoint, default {DEFAULT_CKPT}")
 parser.add_argument("--input", type=str, default=TEXT_SAMPLE, help="input text, defaults to Korean test string.")
 parser.add_argument("--live", action="store_true", help="run an interactive terminal session (ignores --input)")
 args = parser.parse_args()
 
-lang_detector = LanguageDetector(args.checkpoint)
+lang_detector = LanguageDetector(args.checkpoint_file)
 
 if args.live:
     print("\nTransformer Language Classification Demo by Derek Homel")

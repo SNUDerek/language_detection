@@ -69,8 +69,8 @@ def load_wili_2018_dataset(data_path: str, drop_duplicates: bool = True) -> RawD
             if train_sample in test_set:
                 duplicate_indices.add(idx)
                 dropped_samples.append(train_sample)
-        x_train: list[str] = [sample for idx, sample in enumerate(x_train) if idx not in duplicate_indices]
-        y_train: list[str] = [label for idx, label in enumerate(y_train) if idx not in duplicate_indices]
+        x_train = [sample for idx, sample in enumerate(x_train) if idx not in duplicate_indices]
+        y_train = [label for idx, label in enumerate(y_train) if idx not in duplicate_indices]
         logger.info(f"dropped {len(dropped_samples)} samples from training data that also appeared in the test data")
 
     dataset = RawDataset(
