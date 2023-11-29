@@ -25,9 +25,16 @@ parser.add_argument("--out_file", type=str, default="testset.tsv", help="filepat
 args = parser.parse_args()
 
 
+if torch.cuda.is_available():
+    print(f"CUDA detected, using gpu")
+    device_string = "cuda"
+else:
+    print(f"warning! no CUDA detected, using cpu")
+    device_string = "cpu"
+
 if not pathlib.Path(args.checkpoint_file).is_file():
     raise ValueError(f"checkpoint file '{args.checkpoint_file}' does not exist!")
-checkpoint = torch.load(args.checkpoint_file)
+checkpoint = torch.load(args.checkpoint_file, map_location=device_string)
 config = TrainingConfig(**checkpoint["config"])
 # allow overriding saved training debug setting!
 config.debug = args.debug
@@ -38,12 +45,6 @@ torch.manual_seed(config.seed)
 print(f"\nloading model from checkpoint '{args.checkpoint_file}'")
 model = TransformerClassifier(num_classes=checkpoint["num_classes"])
 model.load_state_dict(checkpoint["model_state_dict"])
-if torch.cuda.is_available():
-    print(f"CUDA detected, using gpu")
-    device_string = "cuda"
-else:
-    print(f"warning! no CUDA detected, using cpu")
-    device_string = "cpu"
 _ = model.to(device_string)
 
 print(f"\nloading data from '{config.data_path}'")

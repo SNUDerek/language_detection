@@ -1,7 +1,7 @@
 loguru
 numpy==1.26.0
 pandas
-pytorch==2.1.1
+torch==2.1.1
 scikit-learn==1.3.2
 tqdm
 types-tqdm

@@ -10,12 +10,15 @@ from language_detection.model import TrainingConfig, TransformerClassifier
 
 class LanguageDetector:
     def __init__(self, checkpoint_filepath: str):
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        else:
+            self.device = "cpu"
         self.checkpoint = self.load_checkpoint(checkpoint_filepath)
         if "output_mapping" not in self.checkpoint:
             raise ValueError("checkpoint file is missing 'output_mapping'!")
         self.config = self.load_config()
         self.model = self.load_model()
-        self.device = str(list(self.model.parameters())[0].device)
         random.seed(self.config.seed)
         np.random.seed(self.config.seed)
         torch.manual_seed(self.config.seed)
@@ -23,7 +26,7 @@ class LanguageDetector:
     def load_checkpoint(self, checkpoint_path: str):
         if not pathlib.Path(checkpoint_path).is_file():
             raise ValueError(f"checkpoint file '{checkpoint_path}' does not exist!")
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
         return checkpoint
 
     def load_config(self) -> TrainingConfig:
@@ -37,11 +40,7 @@ class LanguageDetector:
             raise RuntimeError("no config loaded, load config first!")
         model = TransformerClassifier(num_classes=self.checkpoint["num_classes"])
         model.load_state_dict(self.checkpoint["model_state_dict"])
-        if torch.cuda.is_available():
-            device_string = "cuda"
-        else:
-            device_string = "cpu"
-        _ = model.to(device_string)
+        _ = model.to(self.device)
         model.eval()
         return model
 
